@@ -503,9 +503,53 @@ namespace Geometry
 		{
 			return side * 3;
 		}
-		void draw()const
-		{
+		void draw()const		{
+			// Инициализация glfw
+			glfwInit();
 
+			//  задаем конфигурацию glfw
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+			// создаем окно приложения
+			GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "EquilateralTriangle", NULL, NULL);
+
+			// проверка на наличие окна
+			if (window == NULL)
+			{
+				std::cout << "Не удалось создать окно" << std::endl;
+				return;
+
+				// делаем контекст окна основным
+				glfwMakeContextCurrent(window);
+
+				// корекция размера области окна просмотра
+				glfwSetFramebufferSizeCallback(window, framebuffer_size_callbac);
+
+				// загрузка указателей на OpenGL функции
+				if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+				{
+					std::cout << "Не удалось инициализировать GLAD" << std::endl;
+					return;
+				}
+
+				//------------------------------Компилирование шейдерной программы--------------
+
+				// вершинный шейдер
+				int vertwxShaider = glCreateShader(GL_VERTEX_SHADER);
+				glShaderSource(vertwxShaider, 1, &vertexShaderSource, NULL);
+				glCompileShader(vertwxShaider);
+
+				// проверка на наличин ошибок компилирования вершинного шейдера
+				int success;
+				char infolog[512];
+				glGetShaderiv(vertwxShaider, GL_COMPILE_STATUS, &success);
+				if (!success)
+				{
+					glGetShaderInfoLog(vertwxShaider, 512, NULL, infolog);
+				}
+			}
 		}
 	};
 }
