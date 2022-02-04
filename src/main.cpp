@@ -491,6 +491,7 @@ namespace Geometry
 		{
 
 		}
+
 		double get_height()const
 		{
 			return (side * sqrt(3)) / 2;
@@ -520,7 +521,7 @@ namespace Geometry
 			{
 				std::cout << "Не удалось создать окно" << std::endl;
 				return;
-
+			}
 				// делаем контекст окна основным
 				glfwMakeContextCurrent(window);
 
@@ -537,21 +538,520 @@ namespace Geometry
 				//------------------------------Компилирование шейдерной программы--------------
 
 				// вершинный шейдер
-				int vertwxShaider = glCreateShader(GL_VERTEX_SHADER);
-				glShaderSource(vertwxShaider, 1, &vertexShaderSource, NULL);
-				glCompileShader(vertwxShaider);
+				int vertexShaider = glCreateShader(GL_VERTEX_SHADER);
+				glShaderSource(vertexShaider, 1, &vertexShaderSource, NULL);
+				glCompileShader(vertexShaider);
 
 				// проверка на наличин ошибок компилирования вершинного шейдера
 				int success;
 				char infolog[512];
-				glGetShaderiv(vertwxShaider, GL_COMPILE_STATUS, &success);
+				glGetShaderiv(vertexShaider, GL_COMPILE_STATUS, &success);
 				if (!success)
 				{
-					glGetShaderInfoLog(vertwxShaider, 512, NULL, infolog);
+					glGetShaderInfoLog(vertexShaider, 512, NULL, infolog);
+					std::cout << "EROR::SHADERS::VERTEX::COMPILATION_FAILED\n" << infolog << std::endl;
 				}
+
+				// фрагментный шейдер
+				int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+				glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+				glCompileShader(fragmentShader);
+
+				// проверка на наличие ошибок компилирования фрагментного шейдера
+				glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+				if (!success)
+				{
+					glGetShaderInfoLog(fragmentShader, 512, NULL, infolog);
+					std::cout << "ERROR::SHADERS::FRAGMENT::COMPILATION_FAILED\n" << infolog << std::endl;
+				}
+
+				// связывание шейдеров
+				int shaderProgram = glCreateProgram();
+				glAttachShader(shaderProgram, vertexShaider);
+				glAttachShader(shaderProgram, fragmentShader);
+				glLinkProgram(shaderProgram);
+
+				// проверка на наличие ошибок компилирования связывания шейдеров
+				glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+				if (!success)
+				{
+					glGetProgramInfoLog(shaderProgram, 512, NULL, infolog);
+					std::cout << "ERROR::SHADER::PROGRAMM::LINKING_FAILED\n" << infolog << std::endl;
+				}
+
+				// удаление шейдеров
+				glDeleteShader(vertexShaider);
+				glDeleteShader(fragmentShader);
+
+				// указывание вершин
+				float vertices[] =
+				{
+					-(side / 2), -(side / 2), 0.0,
+					side / 2, -(side / 2), 0.0,
+					0.0, get_height() / 2, 0.0,
+				};
+
+				// настройка вершинных атрибутов
+				unsigned int VBO, VAO;
+				glGenVertexArrays(1, &VAO);
+				glGenBuffers(1, &VBO);
+
+				// связываем объект вершинного массива
+				glBindVertexArray(VAO);
+
+				// связываем и устанавливаем вершинный буфер
+				glBindBuffer(GL_ARRAY_BUFFER, VBO);
+				glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+				// конфигурируем вершинный атрибут
+				glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+				glEnableVertexAttribArray(0);
+
+				// выполняем отвязку VBO
+				glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+				// выполняем отвязку VAO
+				glBindVertexArray(0);
+
+				// цикл рендеринга
+				while (!glfwWindowShouldClose(window))
+				{
+					// обработка ввода
+					processInput(window);
+
+					// выполнение рендеринга
+					glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+					glClear(GL_COLOR_BUFFER_BIT);
+
+					// рисуем треугольник
+					glUseProgram(shaderProgram);
+					glBindVertexArray(VAO);
+					glDrawArrays(GL_TRIANGLES, 0, 3);
+
+					// обмен содержимым front и back буфуров
+					glfwSwapBuffers(window);
+
+					// отслеживание событий
+					glfwPollEvents();
+				}
+
+				// освобождаем все ресурсы
+				glDeleteVertexArrays(1, &VAO);
+				glDeleteBuffers(1, &VBO);
+
+				// удаление ресурсов выделеных для GLFW
+				glfwTerminate();
 			}
+		void info()const
+		{
+			cout << typeid(*this).name() << endl;
+			cout << "Стороны\t" << side << endl;
+			cout << "Высота\t" << get_height() << endl;
+			Triangle::info();
 		}
 	};
+
+	class IsoscelesTriangle :public Triangle
+	{
+		double side_A;
+		double side_B;
+	public:
+		double get_side()const
+		{
+			return side_A;
+		}
+		double get_side_B()const
+		{
+			return side_B;
+		}
+		void set_side_A(double side_A)
+		{
+			if (side_A > 2.0)
+			{
+				side_A = 2.0;
+			}
+			this->side_A = side_A;
+		}
+		void set_side_B(double side_B)
+		{
+			if (side_B > 2.0)
+			{
+				side_B = 2.0;
+			}
+			this->side_B = side_B;
+		}
+
+		IsoscelesTriangle
+		(
+			double side_A, double side_B, Color color, unsigned int start_x,
+			unsigned start_y, unsigned int line_width
+		) :Triangle(color, start_x, start_y, line_width)
+		{
+			set_side_A(side_A);
+			set_side_B(side_B);
+		}
+		~IsoscelesTriangle()
+		{
+
+		}
+
+		double get_height()const
+		{
+			return (side_A * sqrt(3)) / 2;
+		}
+		double get_area()const
+		{
+			return (side_B / 4) * sqrt(4 * pow(side_A, 2) - pow(side_B, 2));
+		}
+		double get_perimeter()const
+		{
+			return side_A * 2 + side_B;
+		}
+		void draw()const {
+			// Инициализация glfw
+			glfwInit();
+
+			//  задаем конфигурацию glfw
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+			// создаем окно приложения
+			GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "IsoscelesTriangle", NULL, NULL);
+
+			// проверка на наличие окна
+			if (window == NULL)
+			{
+				std::cout << "Не удалось создать окно" << std::endl;
+				return;
+			}
+			// делаем контекст окна основным
+			glfwMakeContextCurrent(window);
+
+			// корекция размера области окна просмотра
+			glfwSetFramebufferSizeCallback(window, framebuffer_size_callbac);
+
+			// загрузка указателей на OpenGL функции
+			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+			{
+				std::cout << "Не удалось инициализировать GLAD" << std::endl;
+				return;
+			}
+
+			//------------------------------Компилирование шейдерной программы--------------
+
+			// вершинный шейдер
+			int vertexShaider = glCreateShader(GL_VERTEX_SHADER);
+			glShaderSource(vertexShaider, 1, &vertexShaderSource, NULL);
+			glCompileShader(vertexShaider);
+
+			// проверка на наличин ошибок компилирования вершинного шейдера
+			int success;
+			char infolog[512];
+			glGetShaderiv(vertexShaider, GL_COMPILE_STATUS, &success);
+			if (!success)
+			{
+				glGetShaderInfoLog(vertexShaider, 512, NULL, infolog);
+				std::cout << "EROR::SHADERS::VERTEX::COMPILATION_FAILED\n" << infolog << std::endl;
+			}
+
+			// фрагментный шейдер
+			int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+			glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+			glCompileShader(fragmentShader);
+
+			// проверка на наличие ошибок компилирования фрагментного шейдера
+			glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+			if (!success)
+			{
+				glGetShaderInfoLog(fragmentShader, 512, NULL, infolog);
+				std::cout << "ERROR::SHADERS::FRAGMENT::COMPILATION_FAILED\n" << infolog << std::endl;
+			}
+
+			// связывание шейдеров
+			int shaderProgram = glCreateProgram();
+			glAttachShader(shaderProgram, vertexShaider);
+			glAttachShader(shaderProgram, fragmentShader);
+			glLinkProgram(shaderProgram);
+
+			// проверка на наличие ошибок компилирования связывания шейдеров
+			glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+			if (!success)
+			{
+				glGetProgramInfoLog(shaderProgram, 512, NULL, infolog);
+				std::cout << "ERROR::SHADER::PROGRAMM::LINKING_FAILED\n" << infolog << std::endl;
+			}
+
+			// удаление шейдеров
+			glDeleteShader(vertexShaider);
+			glDeleteShader(fragmentShader);
+
+			// указывание вершин
+			float vertices[] =
+			{
+				-(side_B / 2), -(side_A / 2), 0.0,
+				side_B / 2, -(side_A / 2), 0.0,
+				0.0, get_height() / 2, 0.0,
+			};
+
+			// настройка вершинных атрибутов
+			unsigned int VBO, VAO;
+			glGenVertexArrays(1, &VAO);
+			glGenBuffers(1, &VBO);
+
+			// связываем объект вершинного массива
+			glBindVertexArray(VAO);
+
+			// связываем и устанавливаем вершинный буфер
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+			// конфигурируем вершинный атрибут
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+
+			// выполняем отвязку VBO
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			// выполняем отвязку VAO
+			glBindVertexArray(0);
+
+			// цикл рендеринга
+			while (!glfwWindowShouldClose(window))
+			{
+				// обработка ввода
+				processInput(window);
+
+				// выполнение рендеринга
+				glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+
+				// рисуем треугольник
+				glUseProgram(shaderProgram);
+				glBindVertexArray(VAO);
+				glDrawArrays(GL_TRIANGLES, 0, 3);
+
+				// обмен содержимым front и back буфуров
+				glfwSwapBuffers(window);
+
+				// отслеживание событий
+				glfwPollEvents();
+			}
+
+			// освобождаем все ресурсы
+			glDeleteVertexArrays(1, &VAO);
+			glDeleteBuffers(1, &VBO);
+
+			// удаление ресурсов выделеных для GLFW
+			glfwTerminate();
+		}
+		void info()const
+		{
+			cout << typeid(*this).name() << endl;
+			cout << "Ребра\t" << side_A << endl;
+			cout << "Основание\t" << side_B << endl;
+			cout << "Высота\t" << get_height() << endl;
+			Triangle::info();
+		}
+
+	};
+
+	class RectangularTriangle :public Triangle
+	{
+		double side_A;
+		double side_B;
+	public:
+		double get_side()const
+		{
+			return side_A;
+		}
+		void set_side_A(double side_A)
+		{
+			if (side_A > 2.0)
+			{
+				side_A = 2.0;
+			}
+			this->side_A = side_A;
+		}
+		void set_side_B(double side_A)
+		{
+			this->side_B = sqrt(pow(side_A + side_A, 2));
+		}
+
+		RectangularTriangle
+		(
+			double side, Color color, unsigned int start_x,
+			unsigned start_y, unsigned int line_width
+		) :Triangle(color, start_x, start_y, line_width)
+		{
+			set_side_A(side);
+			set_side_B(side);
+		}
+		~RectangularTriangle()
+		{
+
+		}
+
+		double get_height()const
+		{
+			return (side_A * sqrt(3)) / 2;
+		}
+		double get_area()const
+		{
+			return 0.5 * side_A * side_A;
+		}
+		double get_perimeter()const
+		{
+			return side_A * 2 + side_B;
+		}
+		void draw()const {
+			// Инициализация glfw
+			glfwInit();
+
+			//  задаем конфигурацию glfw
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+			glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+			glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+			// создаем окно приложения
+			GLFWwindow* window = glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "EquilateralTriangle", NULL, NULL);
+
+			// проверка на наличие окна
+			if (window == NULL)
+			{
+				std::cout << "Не удалось создать окно" << std::endl;
+				return;
+			}
+			// делаем контекст окна основным
+			glfwMakeContextCurrent(window);
+
+			// корекция размера области окна просмотра
+			glfwSetFramebufferSizeCallback(window, framebuffer_size_callbac);
+
+			// загрузка указателей на OpenGL функции
+			if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+			{
+				std::cout << "Не удалось инициализировать GLAD" << std::endl;
+				return;
+			}
+
+			//------------------------------Компилирование шейдерной программы--------------
+
+			// вершинный шейдер
+			int vertexShaider = glCreateShader(GL_VERTEX_SHADER);
+			glShaderSource(vertexShaider, 1, &vertexShaderSource, NULL);
+			glCompileShader(vertexShaider);
+
+			// проверка на наличин ошибок компилирования вершинного шейдера
+			int success;
+			char infolog[512];
+			glGetShaderiv(vertexShaider, GL_COMPILE_STATUS, &success);
+			if (!success)
+			{
+				glGetShaderInfoLog(vertexShaider, 512, NULL, infolog);
+				std::cout << "EROR::SHADERS::VERTEX::COMPILATION_FAILED\n" << infolog << std::endl;
+			}
+
+			// фрагментный шейдер
+			int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+			glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+			glCompileShader(fragmentShader);
+
+			// проверка на наличие ошибок компилирования фрагментного шейдера
+			glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
+			if (!success)
+			{
+				glGetShaderInfoLog(fragmentShader, 512, NULL, infolog);
+				std::cout << "ERROR::SHADERS::FRAGMENT::COMPILATION_FAILED\n" << infolog << std::endl;
+			}
+
+			// связывание шейдеров
+			int shaderProgram = glCreateProgram();
+			glAttachShader(shaderProgram, vertexShaider);
+			glAttachShader(shaderProgram, fragmentShader);
+			glLinkProgram(shaderProgram);
+
+			// проверка на наличие ошибок компилирования связывания шейдеров
+			glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
+			if (!success)
+			{
+				glGetProgramInfoLog(shaderProgram, 512, NULL, infolog);
+				std::cout << "ERROR::SHADER::PROGRAMM::LINKING_FAILED\n" << infolog << std::endl;
+			}
+
+			// удаление шейдеров
+			glDeleteShader(vertexShaider);
+			glDeleteShader(fragmentShader);
+
+			// указывание вершин
+			float vertices[] =
+			{
+				-(side_A / 2), -(side_A / 2), 0.0,
+				side_A / 2, -(side_A / 2), 0.0,
+				-(side_A / 2), side_A / 2, 0.0,
+			};
+
+			// настройка вершинных атрибутов
+			unsigned int VBO, VAO;
+			glGenVertexArrays(1, &VAO);
+			glGenBuffers(1, &VBO);
+
+			// связываем объект вершинного массива
+			glBindVertexArray(VAO);
+
+			// связываем и устанавливаем вершинный буфер
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+			// конфигурируем вершинный атрибут
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+
+			// выполняем отвязку VBO
+			glBindBuffer(GL_ARRAY_BUFFER, 0);
+
+			// выполняем отвязку VAO
+			glBindVertexArray(0);
+
+			// цикл рендеринга
+			while (!glfwWindowShouldClose(window))
+			{
+				// обработка ввода
+				processInput(window);
+
+				// выполнение рендеринга
+				glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+				glClear(GL_COLOR_BUFFER_BIT);
+
+				// рисуем треугольник
+				glUseProgram(shaderProgram);
+				glBindVertexArray(VAO);
+				glDrawArrays(GL_TRIANGLES, 0, 3);
+
+				// обмен содержимым front и back буфуров
+				glfwSwapBuffers(window);
+
+				// отслеживание событий
+				glfwPollEvents();
+			}
+
+			// освобождаем все ресурсы
+			glDeleteVertexArrays(1, &VAO);
+			glDeleteBuffers(1, &VBO);
+
+			// удаление ресурсов выделеных для GLFW
+			glfwTerminate();
+		}
+		void info()const
+		{
+			cout << typeid(*this).name() << endl;
+			cout << "Стороны образующие прямой угол\t" << side_A << endl;
+			cout << "Гепотинуза\t" << side_B << endl;
+			cout << "Высота\t" << get_height() << endl;
+			Triangle::info();
+		}
+	};
+
 }
 
 int main(void)
@@ -571,7 +1071,15 @@ int main(void)
 	Geometry::Circle circle(250, Geometry::Color::blue, 300, 400, 5);
 	circle.info();
 
-	return 0;
+	Geometry::EquilateralTriangle equi_triangle(1.0, Geometry::Color::blue, 300, 400, 5);
+	equi_triangle.info();
+
+	Geometry::IsoscelesTriangle isos_triangle(1.0, 2.0, Geometry::Color::blue, 300, 400, 5);
+	isos_triangle.info();
+
+	Geometry::RectangularTriangle rectangular_triangle(1.8, Geometry::Color::blue, 300, 400, 5);
+	rectangular_triangle.info();
+
 }
 
 // Обработка всех событий ввода: запрос GLFW о нажатии/отпускании клавиш
